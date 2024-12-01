@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {DSCEngine} from "../../src/DSCEngine.sol";
 import {DecentralizedStablecoin} from "../../src/DecentralizedStablecoin.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
@@ -14,6 +14,7 @@ contract Handler is Test {
     ERC20Mock wbtc;
 
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
+    // ERC20Mock collateral;
 
     constructor(DSCEngine _dscEngine, DecentralizedStablecoin _dsc) {
         dsce = _dscEngine;
@@ -25,6 +26,7 @@ contract Handler is Test {
 
     function depositCollateral(uint256 collaterallSeed, uint256 amountCollateral) public {
         ERC20Mock collateral = _getCollateralFromSeed(collaterallSeed);
+        console.log("collateral A:", address(collateral));
         amountCollateral = bound(amountCollateral, 1, MAX_DEPOSIT_SIZE);
 
         vm.startPrank(msg.sender);
@@ -32,6 +34,20 @@ contract Handler is Test {
         collateral.approve(address(dsce), amountCollateral);
         dsce.depositCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+    }
+
+    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
+        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+        uint256 maxCollateralToRedeem = dsce.getCollateralBalanceOfUser(msg.sender, address(collateral));
+
+        if (maxCollateralToRedeem == 0) {
+            return;
+        }
+
+        amountCollateral = bound(amountCollateral, 1, maxCollateralToRedeem);
+        
+        vm.prank(msg.sender);
+        dsce.redeemCollateral(address(collateral), amountCollateral);
     }
 
     //Helper Functions
