@@ -13,6 +13,10 @@ contract Handler is Test {
     ERC20Mock weth;
     ERC20Mock wbtc;
 
+    uint256 public timesMintIsCalled;
+    
+    address[] public userWithCollateral;
+
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
     // ERC20Mock collateral;
 
@@ -24,9 +28,13 @@ contract Handler is Test {
         wbtc = ERC20Mock(collateralTokens[1]);
     }
 
-    function mintDSC(uint256 amount) public {
-        (uint256 totalDscMinted, uint256 collaterallValueinUsd) = dsce.getAccountInformation(msg.sender);
-        int256 maxDscToMint = (int256(collaterallValueinUsd / 2)) - int256(totalDscMinted);
+    function mintDSC(uint256 amount,uint256 addressSeed) public {
+        if(userWithCollateral.length == 0){
+            return;
+        }
+        address sender = userWithCollateral[addressSeed % userWithCollateral.length];
+        (uint256 totalDscMinted, uint256 collaterallValueinUsd) = dsce.getAccountInformation(sender);
+        int256 maxDscToMint = (int256(collaterallValueinUsd) / 2) - int256(totalDscMinted);
 
         if (maxDscToMint < 0) {
             return;
@@ -37,14 +45,14 @@ contract Handler is Test {
             return;
         }
 
-        vm.startPrank(msg.sender);
+        vm.startPrank(sender);
         dsce.mintDsc(amount);
         vm.stopPrank();
+        timesMintIsCalled++;
     }
 
     function depositCollateral(uint256 collaterallSeed, uint256 amountCollateral) public {
         ERC20Mock collateral = _getCollateralFromSeed(collaterallSeed);
-        console.log("collateral A:", address(collateral));
         amountCollateral = bound(amountCollateral, 1, MAX_DEPOSIT_SIZE);
 
         vm.startPrank(msg.sender);
@@ -52,6 +60,7 @@ contract Handler is Test {
         collateral.approve(address(dsce), amountCollateral);
         dsce.depositCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+        userWithCollateral.push(msg.sender);
     }
 
     function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
@@ -61,6 +70,9 @@ contract Handler is Test {
         if (maxCollateralToRedeem == 0) {
             return;
         }
+        //to fix
+        // uint256 MaxRedeem = Collateralvalue - (DScValueInCollateral * 2);
+        // console.log("maxredeem:", MaxRedeem);
 
         amountCollateral = bound(amountCollateral, 1, maxCollateralToRedeem);
 

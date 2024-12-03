@@ -48,7 +48,15 @@ contract OpenInvariantTest is StdInvariant, Test {
         console.log("weth value: ", wethValue);
         console.log("wbtc value: ", wbtcValue);
         console.log("total supply: ", totallSuypply);
-
+        console.log("Times mint called:",handler.timesMintIsCalled());
         assert(wethValue + wbtcValue >= totallSuypply);
+    }
+
+    function invariants_gettersShouldNotRevert() public view {
+        dsce.getCollateralTokens();
+        dsce.getUsdValue(weth, 1);
+        dsce.getUsdValue(wbtc, 1);
+        dsce.getAccountInformation(address(this));
+
     }
 }
