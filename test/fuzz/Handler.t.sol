@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {DSCEngine} from "../../src/DSCEngine.sol";
 import {DecentralizedStablecoin} from "../../src/DecentralizedStablecoin.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
     DSCEngine dsce;
@@ -14,8 +15,10 @@ contract Handler is Test {
     ERC20Mock wbtc;
 
     uint256 public timesMintIsCalled;
-    
+
     address[] public userWithCollateral;
+
+    MockV3Aggregator ethUsdPriceFeed;
 
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
     // ERC20Mock collateral;
@@ -26,10 +29,12 @@ contract Handler is Test {
         address[] memory collateralTokens = dsce.getCollateralTokens();
         weth = ERC20Mock(collateralTokens[0]);
         wbtc = ERC20Mock(collateralTokens[1]);
+
+        ethUsdPriceFeed = MockV3Aggregator(dsce.getCollateralTokenPriceFeed(address(weth)));
     }
 
-    function mintDSC(uint256 amount,uint256 addressSeed) public {
-        if(userWithCollateral.length == 0){
+    function mintDSC(uint256 amount, uint256 addressSeed) public {
+        if (userWithCollateral.length == 0) {
             return;
         }
         address sender = userWithCollateral[addressSeed % userWithCollateral.length];
@@ -40,8 +45,8 @@ contract Handler is Test {
             return;
         }
 
-        amount =bound(amount, 0, uint256(maxDscToMint));
-        if(amount ==0){
+        amount = bound(amount, 0, uint256(maxDscToMint));
+        if (amount == 0) {
             return;
         }
 
@@ -60,6 +65,7 @@ contract Handler is Test {
         collateral.approve(address(dsce), amountCollateral);
         dsce.depositCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+
         userWithCollateral.push(msg.sender);
     }
 
@@ -70,15 +76,19 @@ contract Handler is Test {
         if (maxCollateralToRedeem == 0) {
             return;
         }
-        //to fix
-        // uint256 MaxRedeem = Collateralvalue - (DScValueInCollateral * 2);
-        // console.log("maxredeem:", MaxRedeem);
+        //to fix see if redeem the amount will broke healt factor if true return if not continue
+
 
         amountCollateral = bound(amountCollateral, 1, maxCollateralToRedeem);
 
         vm.prank(msg.sender);
         dsce.redeemCollateral(address(collateral), amountCollateral);
     }
+
+    // function updateCollateralPriceFeed(uint96 newPrice) public {
+    //     int256 newPriceInt = int256(uint256(newPrice));
+    //     ethUsdPriceFeed.updateAnswer(newPriceInt);
+    // }
 
     //Helper Functions
     function _getCollateralFromSeed(uint256 collateralSeed) private view returns (ERC20Mock) {
